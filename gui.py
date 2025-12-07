@@ -12,6 +12,17 @@ import subprocess
 import threading
 from pathlib import Path
 
+# Windows 高 DPI 支持 - 必须在导入 PyQt5 之前设置
+if sys.platform == 'win32':
+    try:
+        from ctypes import windll
+        windll.shcore.SetProcessDpiAwareness(2)  # PROCESS_PER_MONITOR_DPI_AWARE
+    except:
+        try:
+            windll.user32.SetProcessDPIAware()
+        except:
+            pass
+
 # 检查 PyQt5
 try:
     from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
@@ -20,6 +31,12 @@ try:
                                   QMessageBox, QInputDialog)
     from PyQt5.QtCore import Qt, QThread, pyqtSignal
     HAS_PYQT = True
+    
+    # 高 DPI 支持 - 必须在创建 QApplication 之前设置
+    if hasattr(Qt, 'AA_EnableHighDpiScaling'):
+        QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
+    if hasattr(Qt, 'AA_UseHighDpiPixmaps'):
+        QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
 except ImportError:
     HAS_PYQT = False
     print("错误: 未安装 PyQt5")
@@ -167,20 +184,31 @@ class ProcessThread(QThread):
             cmd.extend(['-ech', self.config['ech']])
         
         try:
+            # Windows 上需要指定 UTF-8 编码，因为 Go 程序输出 UTF-8
             self.process = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
-                universal_newlines=True,
                 bufsize=1
             )
             self.is_running = True
             
-            for line in iter(self.process.stdout.readline, ''):
-                if not self.is_running:
+            # 使用 UTF-8 解码，忽略无法解码的字符
+            while self.is_running:
+                line = self.process.stdout.readline()
+                if not line:
                     break
-                if line:
-                    self.log_output.emit(line)
+                try:
+                    # 尝试 UTF-8 解码
+                    decoded_line = line.decode('utf-8', errors='replace')
+                except:
+                    # 如果失败，尝试系统默认编码
+                    try:
+                        decoded_line = line.decode(errors='replace')
+                    except:
+                        decoded_line = str(line)
+                if decoded_line:
+                    self.log_output.emit(decoded_line)
             
             self.process.wait()
             self.is_running = False
