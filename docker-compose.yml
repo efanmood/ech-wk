@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  ech-workers:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ech-workers:armv7
+    container_name: ech-workers-proxy
+    restart: unless-stopped
+    
+    # Network mode for better performance
+    network_mode: bridge
+    
+    # Port mapping - SOCKS5/HTTP proxy
+    ports:
+      - "30000:30000"
+    
+    # Environment variables - CUSTOMIZE THESE!
+    environment:
+      # Required: Your worker address
+      - SERVER_ADDR=your-worker.workers.dev:443
+      # Optional: Server IP (bypass DNS)
+      - SERVER_IP=
+      # Optional: Authentication token
+      - TOKEN=your-token-here
+      # Listen address (default: 0.0.0.0:30000)
+      - LISTEN_ADDR=0.0.0.0:30000
+      # Routing mode: global, bypass_cn, none
+      - ROUTING_MODE=global
+      # DNS server for ECH queries
+      - DNS_SERVER=dns.alidns.com/dns-query
+      # ECH domain
+      - ECH_DOMAIN=cloudflare-ech.com
+    
+    # Command with all parameters
+    command: >
+      -l ${LISTEN_ADDR:-0.0.0.0:30000}
+      -f ${SERVER_ADDR}
+      ${SERVER_IP:+-ip ${SERVER_IP}}
+      ${TOKEN:+-token ${TOKEN}}
+      -dns ${DNS_SERVER:-dns.alidns.com/dns-query}
+      -ech ${ECH_DOMAIN:-cloudflare-ech.com}
+      -routing ${ROUTING_MODE:-global}
+    
+    # Volume for persistent data (IP lists cache)
+    volumes:
+      - ech-data:/app/data
+      - ech-logs:/app/logs
+    
+    # Resource limits (adjust for your device)
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 64M
+    
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  ech-data:
+    driver: local
+  ech-logs:
+    driver: local

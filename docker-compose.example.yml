@@ -1,0 +1,151 @@
+# Docker Compose Example Configuration for ECH Workers - ARMv7 (Armbian)
+# 
+# This is an example configuration file. Copy this file to docker-compose.yml
+# and modify the environment variables according to your setup.
+#
+# Usage:
+#   cp docker-compose.example.yml docker-compose.yml
+#   nano docker-compose.yml  # Edit configuration
+#   docker-compose up -d
+
+version: '3.8'
+
+services:
+  ech-workers:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ech-workers:armv7
+    container_name: ech-workers-proxy
+    restart: unless-stopped
+    
+    # Network configuration
+    network_mode: bridge
+    
+    # Port mapping - SOCKS5/HTTP proxy
+    ports:
+      - "30000:30000"  # Change left side to use different host port
+    
+    # Environment variables - MODIFY THESE VALUES!
+    environment:
+      #############################################
+      # REQUIRED CONFIGURATION
+      #############################################
+      
+      # Your Cloudflare Worker address (REQUIRED)
+      # Example: my-worker.workers.dev:443
+      - SERVER_ADDR=your-worker.workers.dev:443
+      
+      #############################################
+      # OPTIONAL CONFIGURATION
+      #############################################
+      
+      # Server IP address (optional, bypasses DNS resolution)
+      # Leave empty to use DNS resolution
+      # Example: 1.2.3.4
+      - SERVER_IP=
+      
+      # Authentication token (optional but recommended)
+      # This should match the token configured in your Worker
+      - TOKEN=your-token-here
+      
+      # Local listen address (default: 0.0.0.0:30000)
+      # 0.0.0.0 listens on all interfaces (recommended for Armbian)
+      # Use 127.0.0.1 to listen only on localhost
+      - LISTEN_ADDR=0.0.0.0:30000
+      
+      # Routing mode (default: global)
+      # Options:
+      #   - global: All traffic goes through proxy
+      #   - bypass_cn: China IPs go direct, others through proxy
+      #   - none: All traffic goes direct (direct connection mode)
+      - ROUTING_MODE=global
+      
+      # DNS server for ECH queries (default: dns.alidns.com/dns-query)
+      # Other options: cloudflare-dns.com/dns-query, dns.google/dns-query
+      - DNS_SERVER=dns.alidns.com/dns-query
+      
+      # ECH domain for ECH configuration fetch (default: cloudflare-ech.com)
+      - ECH_DOMAIN=cloudflare-ech.com
+      
+      # Timezone (optional)
+      - TZ=Asia/Shanghai
+    
+    # Command line arguments
+    # These override environment variables and provide fine-grained control
+    command: >
+      -l ${LISTEN_ADDR:-0.0.0.0:30000}
+      -f ${SERVER_ADDR}
+      ${SERVER_IP:+-ip ${SERVER_IP}}
+      ${TOKEN:+-token ${TOKEN}}
+      -dns ${DNS_SERVER:-dns.alidns.com/dns-query}
+      -ech ${ECH_DOMAIN:-cloudflare-ech.com}
+      -routing ${ROUTING_MODE:-global}
+    
+    # Volumes for persistent data
+    # IP lists cache and logs are stored here
+    volumes:
+      - ech-data:/app/data
+      - ech-logs:/app/logs
+    
+    # Resource limits
+    # Adjust these based on your device's capabilities
+    # For low-end devices (e.g., Orange Pi Zero), reduce limits
+    # For high-end devices, increase limits for better performance
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'      # Maximum 1 CPU core
+          memory: 256M     # Maximum 256MB RAM
+        reservations:
+          cpus: '0.25'     # Reserved 0.25 CPU core
+          memory: 64M      # Reserved 64MB RAM
+    
+    # Logging configuration
+    # Prevents log files from growing too large
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"    # Maximum log file size
+        max-file: "3"      # Keep last 3 log files
+
+# Named volumes for data persistence
+volumes:
+  ech-data:
+    driver: local
+  ech-logs:
+    driver: local
+
+# Alternative configurations (uncomment to use):
+
+# 1. For bypass_cn mode with pre-downloaded IP lists:
+#    Uncomment the volumes section and download IP lists first:
+#    
+#    services:
+#      ech-workers:
+#        volumes:
+#          - ./chn_ip.txt:/app/chn_ip.txt:ro
+#          - ./chn_ip_v6.txt:/app/chn_ip_v6.txt:ro
+
+# 2. For host network mode (better performance, less isolation):
+#    Uncomment network_mode and comment out ports section:
+#    
+#    services:
+#      ech-workers:
+#        network_mode: host
+#        # ports:  # Not needed in host mode
+
+# 3. For multiple proxy instances:
+#    Copy the service block and modify:
+#    - container_name
+#    - ports (use different port numbers)
+#    - environment variables
+
+# 4. For development/testing with build cache disabled:
+#    
+#    services:
+#      ech-workers:
+#        build:
+#          context: .
+#          dockerfile: Dockerfile
+#          no_cache: true
