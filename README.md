@@ -13,6 +13,7 @@
 - [命令行使用](#命令行使用)
 - [图形界面使用](#图形界面使用)
 - [软路由部署](#软路由部署)
+- [Docker 部署（ARMv7/Armbian）](#docker-部署armv7armbian)
 - [系统要求](#系统要求)
 - [故障排除](#故障排除)
 - [技术文档](#技术文档)
@@ -522,6 +523,98 @@ logread | grep ech-workers
 # 测试连接
 curl --socks5 127.0.0.1:30001 http://www.google.com
 ```
+
+## 🐳 Docker 部署（ARMv7/Armbian）
+
+ech-wk 支持在 ARMv7 架构的 Armbian 设备上使用 Docker 部署，特别适合 Orange Pi、Banana Pi 等单板计算机。
+
+### 快速部署
+
+#### 使用 Docker
+
+```bash
+# 1. 构建镜像
+docker build -t ech-workers:armv7 .
+
+# 2. 运行容器
+docker run -d \
+  --name ech-workers-proxy \
+  --restart unless-stopped \
+  -p 30000:30000 \
+  ech-workers:armv7 \
+  -l 0.0.0.0:30000 \
+  -f your-worker.workers.dev:443 \
+  -token your-token-here \
+  -routing global
+```
+
+#### 使用 Docker Compose（推荐）
+
+```bash
+# 1. 编辑 docker-compose.yml，修改环境变量
+nano docker-compose.yml
+
+# 2. 启动服务
+docker-compose up -d
+
+# 3. 查看日志
+docker-compose logs -f
+```
+
+### 配置参数
+
+编辑 `docker-compose.yml` 中的环境变量：
+
+```yaml
+environment:
+  # 必需：您的 Worker 地址
+  - SERVER_ADDR=your-worker.workers.dev:443
+  # 可选：服务器 IP（绕过 DNS）
+  - SERVER_IP=1.2.3.4
+  # 可选：认证令牌
+  - TOKEN=your-token-here
+  # 监听地址
+  - LISTEN_ADDR=0.0.0.0:30000
+  # 分流模式：global, bypass_cn, none
+  - ROUTING_MODE=global
+```
+
+### 常用命令
+
+```bash
+# 查看运行状态
+docker ps | grep ech-workers
+
+# 查看日志
+docker logs -f ech-workers-proxy
+
+# 重启容器
+docker restart ech-workers-proxy
+
+# 停止容器
+docker stop ech-workers-proxy
+
+# 删除容器
+docker rm -f ech-workers-proxy
+```
+
+### 详细文档
+
+完整的 Docker 部署指南、故障排除和高级配置，请参考 **[DOCKER.md](DOCKER.md)**，包括：
+- 📦 详细的安装步骤
+- 🔧 配置说明和最佳实践
+- 🚀 性能优化建议
+- 🐛 常见问题和故障排除
+- 💡 高级配置示例
+
+### 支持的设备
+
+Docker 镜像针对 ARMv7 优化，支持以下设备（需运行 Armbian）：
+- Orange Pi PC/PC Plus/Zero
+- Banana Pi M1/M2/M3
+- Raspberry Pi 2 Model B
+- NanoPi Neo/Neo Air
+- 其他 ARMv7 架构的单板计算机
 
 ## 📋 系统要求
 

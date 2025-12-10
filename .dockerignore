@@ -1,0 +1,75 @@
+# Git files
+.git
+.gitignore
+.github
+
+# Python environment
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+venv/
+ENV/
+env/
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Python GUI files (not needed for Docker)
+gui.py
+requirements.txt
+*.icns
+*.ico
+app_icon.png
+
+# IP list cache files (will be downloaded at runtime if needed)
+chn_ip.txt
+chn_ip_v6.txt
+
+# Documentation
+README.md
+LICENSE
+*.md
+
+# Build artifacts
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.sum
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+
+# OpenWrt specific script (not needed for Docker)
+softrouter.sh
+
+# Test files
+*_test.go
